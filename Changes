@@ -1,0 +1,12 @@
+Revision history for Perl module Lingua::HE::MacHebrew
+
+0.03  Sat Feb 01 20:15:25 2003
+    - document modification.
+
+0.02  Sat Feb 01 01:35:15 2003
+    - *.map files are integrated.
+    - document modification.
+    - contraction support is supported without hard-coding.
+
+0.01  Thu Jan 30 22:46:20 2003
+    - original version;

@@ -1,0 +1,12 @@
+Changes
+Makefile.PL
+README
+MANIFEST
+MacHebrew.pm
+MacHebrew.xs
+addition.map
+hebrew.map
+mkheader
+t/enc.t
+t/qual.t
+t/test.t

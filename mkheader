@@ -1,0 +1,184 @@
+#!perl
+#
+# This mkheader script makes two C header files,
+# $fmhfile and $tohfile (see below their values).
+# These files are used to build Lingua::HE::MacHebrew.
+#
+use 5.006001;
+use strict;
+use warnings;
+
+# Supporting on EBCDIC platform is not tested.
+# Tester(s) welcome!
+my $IsEBCDIC = ord("A") != 0x41;
+
+my $mapfile = "hebrew.map";
+my $addfile = "addition.map";
+
+my $wc = 'UV';
+my $mc = 'U8';
+my $dc = 'STDCHAR';
+
+my $ss = 'struct mac_he_string';
+my $sc = 'struct mac_he_contr';
+
+my $fmhfile = "fmmache.h";
+my $tohfile = "tomache.h";
+my $encname = "mac_he";
+
+open FM, ">$fmhfile" or die "$fmhfile $!" or die;
+open TO, ">$tohfile" or die "$tohfile $!" or die;
+binmode FM;
+binmode TO;
+
+my (%toUni, %fmUniR, %fmUniL, %fmUniN, %fmUniC, %contr, %dir, $text);
+
+$text = '';
+
+for my $f ($addfile, $mapfile) {
+    open IN, "<$f" or die "$f $!";
+    binmode IN;
+    local $/ = undef;
+    $text .= <IN>;
+    $text .= "\n";
+    close IN;
+}
+
+for (split /[\r\n]/, $text) {
+    next if /^#/;
+    next if /^$/;
+
+    my @t = split;
+    my $e = hex $t[0];
+    next if ! $t[1];
+
+    my @c = split /\+/, $t[1];
+    my $d = '';
+    if ($c[0] =~ /<(?:LR|RL)>/) {
+	$d = shift @c;
+	$d =~ tr/<>//d;
+    }
+    my @u = map hex, @c;
+    die "no Unicode in $_" if @u < 1;
+    die "$e > 255 in $_" if $e > 255;
+    die "$u[0] > 0xffff in $_" if $u[0] > 0xffff;
+
+    $toUni{$e} = [ @u ];
+    $dir  {$e} = $d eq 'LR' ? 1 : $d eq 'RL' ? 2 : 0;
+
+    if (@u == 1) {
+	my($a,$b) = unpack('CC', pack 'n', $u[0]);
+	$fmUniL{$a}{$b} = $e if $d ne 'RL'; # L or neutral
+	$fmUniR{$a}{$b} = $e if $d ne 'LR'; # R or neutral
+	$fmUniN{$a}{$b} = $e if $d eq '';   # neutral
+    }
+    else {
+	my $base = shift @u;
+	my($a,$b) = unpack('CC', pack 'n', $base);
+	$fmUniC{$a}{$b} ++;
+	push @{ $contr{$base} }, [ $e, split_into_char(@u) ];
+    }
+}
+
+print FM "$ss { $wc uv; $mc* string; };\n\n";
+
+print FM "$ss fm_${encname}_tbl [256] = {\n";
+
+for (my $i = 0; $i < 256; $i++) {
+    my @u = defined $toUni{$i} ? @{ $toUni{$i} } : (0);
+    my $cnt = @u;
+
+    if ($cnt == 1) {
+	printf FM "\t{ ($wc)0x%x, NULL }", $u[0];
+    } else {
+	my @c = split_into_char(@{ $toUni{$i} });
+	my $str = sprintf '"%s"', join '', map sprintf("\\x%02x", $_), @c;
+	my $len = @c;
+	print FM "\t{ ($wc)$len, ($mc*)$str }";
+    }
+    print FM ','  if $i != 255;
+    print FM "\n";
+}
+print FM "};\n\n";
+
+print FM "$dc fm_${encname}_dir [256] = {\n";
+for (my $i = 0; $i < 256; $i++) {
+    printf FM " %d",
+	defined $dir{$i} ? $dir{$i} : 0;
+    print  FM ','  if $i != 255;
+    print  FM "\n" if $i % 16 == 15;
+}
+print FM "};\n\n";
+
+
+
+
+print TO << "END";
+$sc { $wc len; $mc* string; $mc byte; };
+
+END
+
+foreach my $uv (sort { $a <=> $b } keys %contr) {
+    my @list = sort { length $a <=> length $b || $a cmp $b } @{ $contr{$uv} };
+
+    print TO "$sc to_${encname}_${uv}_contr [] = {\n";
+    foreach my $ele (@list) {
+	my ($by, @c) = @$ele;
+	my $str = sprintf '"%s"', join '', map sprintf("\\x%02x", $_), @c;
+	my $len = @c;
+	print TO "\t{ ($wc)$len, ($mc*)$str, ($mc)$by },\n";
+    }
+    print TO "{0,NULL,0}\n};\n\n";
+}
+
+my %fmUniHsh = (
+    L => \%fmUniL,
+    R => \%fmUniR,
+    N => \%fmUniN,
+    C => \%fmUniC,
+);
+foreach my $dir (qw( L R N C ) ) {
+    my $hsh = $fmUniHsh{$dir};
+    my $typ = $dir eq 'C' ? "$sc*" : $mc;
+
+    foreach my $le (sort { $a <=> $b } keys %$hsh) {
+	print TO "$typ to_${encname}_${le}_${dir} [256] = {\n";
+	for (my $i = 0; $i < 256; $i++) {
+	    my $uv = $le * 256 + $i;
+	    if ($dir eq 'C') {
+		printf TO "\t%s",
+		    defined $hsh->{$le}{$i}
+			? "to_${encname}_${uv}_contr"
+			: "NULL";
+	    } else {
+		printf TO "\t%d",
+		    defined $hsh->{$le}{$i} ? $hsh->{$le}{$i} : 0;
+	    }
+	    print  TO ','  if $i != 255;
+	    print  TO "\n" if $i % 8 == 7;
+	}
+	print TO "};\n\n";
+    }
+
+    print TO "$typ* to_${encname}_${dir} [] = {\n";
+    for (my $i = 0; $i < 256; $i++) {
+	print TO "\t",
+	    defined $hsh->{$i} ? "to_${encname}_${i}_${dir}" : "NULL";
+	print TO ','  if $i != 255;
+	print TO "\n" if $i % 8 == 7;
+    }
+    print TO "};\n\n\n";
+}
+
+close FM;
+close TO;
+
+sub split_into_char {
+    my @uv = @_;
+    return unpack 'C*', ($IsEBCDIC
+	? pack('U*', map utf8::unicode_to_native($_), @uv)
+	: pack('U*', @uv));
+}
+
+1;
+__END__
