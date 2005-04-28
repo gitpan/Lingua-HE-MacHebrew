@@ -19,36 +19,60 @@
 
 #define SBCS_LEN	1
 
-#define MAC_HE_DIR_NT	0
-#define MAC_HE_DIR_LR	1
-#define MAC_HE_DIR_RL	2
+#define FromMacTbl	fm_mache_tbl
+#define FromMacDir	fm_mache_dir
+#define ToMacTbl 	to_mache_table
+#define ToMacTblN	to_mache_N
+#define ToMacTblL	to_mache_L
+#define ToMacTblR	to_mache_R
+#define ToMacTblC	to_mache_C
 
-#define MAC_HE_UV_PDF	0x202C
-#define MAC_HE_UV_LRO	0x202D
-#define MAC_HE_UV_RLO	0x202E
-
-static U8 ** mac_he_table [] = {
-    to_mac_he_N,
-    to_mac_he_L,
-    to_mac_he_R
+static U8 ** ToMacTbl [] = {
+    ToMacTblN,
+    ToMacTblL,
+    ToMacTblR
 };
 
+static void
+sv_cat_cvref (SV *dst, SV *cv, SV *sv)
+{
+    dSP;
+    int count;
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+    XPUSHs(sv_2mortal(sv));
+    PUTBACK;
+    count = call_sv(cv, (G_EVAL|G_SCALAR));
+    SPAGAIN;
+    if (SvTRUE(ERRSV) || count != 1) {
+	croak("died in XS, " PkgName "\n");
+    }
+    sv_catsv(dst,POPs);
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+}
+
 MODULE = Lingua::HE::MacHebrew	PACKAGE = Lingua::HE::MacHebrew
+PROTOTYPES: DISABLE
 
 void
-decode(src)
-    SV* src
-  PROTOTYPE: $
+decode(...)
   ALIAS:
     decodeMacHebrew = 1
   PREINIT:
-    SV *dst;
+    SV *src, *dst;
     STRLEN srclen;
-    U8 *s, *e, *p, uni[UTF8_MAXLEN + 1];
-    UV uv;
+    U8 *s, *e, *p;
+    STDCHAR *str, *utf_string;
     STDCHAR curdir, predir;
-    struct mac_he_string heexp;
   PPCODE:
+    if (0 < items && SvROK(ST(0))) {
+	croak(PkgName " 1st argument is REF, but handler for decode is NG.");
+    }
+    src = (0 < items) ? ST(0) : &PL_sv_undef;
+
     if (SvUTF8(src)) {
 	src = sv_mortalcopy(src);
 	sv_utf8_downgrade(src, 0);
@@ -59,50 +83,43 @@ decode(src)
     (void)SvPOK_only(dst);
     SvUTF8_on(dst);
 
-    predir = MAC_HE_DIR_NT;
+    predir = MACBIDI_DIR_NT;
     for (p = s; p < e; p++, predir = curdir) {
-	curdir = fm_mac_he_dir[*p];
+	curdir = FromMacDir[*p];
 
 	if (predir != curdir) {
-	    if (predir != MAC_HE_DIR_NT) {
-		uv = MAC_HE_UV_PDF;
-		(void)uvuni_to_utf8(uni, uv);
-		sv_catpvn(dst, (char*)uni, (STRLEN)UNISKIP(uv));
+	    if (predir != MACBIDI_DIR_NT) {
+		sv_catpv(dst, (char*)MACBIDI_STR_PDF);
 	    }
-	    if (curdir != MAC_HE_DIR_NT) {
-		uv = (curdir == MAC_HE_DIR_LR) ? MAC_HE_UV_LRO :
-		     (curdir == MAC_HE_DIR_RL) ? MAC_HE_UV_RLO :
-		     0; /* Panic: undefined direction in decode" */;
-		(void)uvuni_to_utf8(uni, uv);
-		sv_catpvn(dst, (char*)uni, (STRLEN)UNISKIP(uv));
+	    if (curdir != MACBIDI_DIR_NT) {
+		str = (curdir == MACBIDI_DIR_LR) ? MACBIDI_STR_LRO :
+		      (curdir == MACBIDI_DIR_RL) ? MACBIDI_STR_RLO :
+		      NULL; /* Panic */;
+		if (!str) {
+		    croak(PkgName "Panic: undefined direction in decode");
+		}
+		sv_catpv(dst, (char*)str);
 	    }
 	}
 
-	heexp = fm_mac_he_tbl[*p];
-	if (heexp.string) {
-	    sv_catpvn(dst, (char*)heexp.string, (STRLEN)heexp.uv);
-	}
-	else {
-	    uv = heexp.uv;
-	    (void)uvuni_to_utf8(uni, uv);
-	    sv_catpvn(dst, (char*)uni, (STRLEN)UNISKIP(uv));
+	utf_string = FromMacTbl[*p];
+	if (utf_string) {
+	    if (*utf_string)
+		sv_catpv(dst, (char*)utf_string);
+	    else /* \0 to \0 */
+		sv_catpvn(dst, (char*)utf_string, 1);
 	}
     }
 
-    if (predir != MAC_HE_DIR_NT) {
-	uv = MAC_HE_UV_PDF;
-	(void)uvuni_to_utf8(uni, uv);
-	sv_catpvn(dst, (char*)uni, (STRLEN)UNISKIP(uv));
+    if (predir != MACBIDI_DIR_NT) {
+	sv_catpv(dst, (char*)MACBIDI_STR_PDF);
     }
     XPUSHs(dst);
 
 
 
 void
-encode(arg1, arg2 = 0)
-    SV* arg1
-    SV* arg2
-  PROTOTYPE: $;$
+encode(...)
   ALIAS:
     encodeMacHebrew = 1
   PREINIT:
@@ -110,25 +127,25 @@ encode(arg1, arg2 = 0)
     STRLEN srclen, retlen;
     U8 *s, *e, *p;
     U8 b, *t, **table;
-    struct mac_he_contr *cellist, **rowlist;
+    struct macbidi_contra *p_contra, *cel_contra, **row_contra;
     UV uv;
     STDCHAR dir;
-    bool cv = 0;
-    bool pv = 0;
+    bool has_cv = FALSE;
+    bool has_pv = FALSE;
   PPCODE:
-    src = arg1;
-    if (items == 2) {
-	if (SvROK(arg1)) {
-	    ref = SvRV(arg1);
-	    if (SvTYPE(ref) == SVt_PVCV)
-		cv = TRUE;
-	    else if (SvPOK(ref))
-		pv = TRUE;
-	    else
-		croak(PkgName " 1st argument is not STRING nor CODEREF");
-	}
-	src = arg2;
+    ref = NULL;
+    if (0 < items && SvROK(ST(0))) {
+	ref = SvRV(ST(0));
+	if (SvTYPE(ref) == SVt_PVCV)
+	    has_cv = TRUE;
+	else if (SvPOK(ref))
+	    has_pv = TRUE;
+	else
+	    croak(PkgName " 1st argument is not STRING nor CODEREF");
     }
+    src = ref
+	? (1 < items) ? ST(1) : &PL_sv_undef
+	: (0 < items) ? ST(0) : &PL_sv_undef;
 
     if (!SvUTF8(src)) {
 	src = sv_mortalcopy(src);
@@ -140,69 +157,50 @@ encode(arg1, arg2 = 0)
     (void)SvPOK_only(dst);
     SvUTF8_off(dst);
 
-    dir = MAC_HE_DIR_NT;
+    dir = MACBIDI_DIR_NT;
 
     for (p = s; p < e;) {
 	uv = utf8n_to_uvuni(p, e - p, &retlen, 0);
 	p += retlen;
 
 	switch (uv) {
-	case MAC_HE_UV_PDF:
-	    dir = MAC_HE_DIR_NT;
+	case MACBIDI_UV_PDF:
+	    dir = MACBIDI_DIR_NT;
 	    break;
-	case MAC_HE_UV_LRO:
-	    dir = MAC_HE_DIR_LR;
+	case MACBIDI_UV_LRO:
+	    dir = MACBIDI_DIR_LR;
 	    break;
-	case MAC_HE_UV_RLO:
-	    dir = MAC_HE_DIR_RL;
+	case MACBIDI_UV_RLO:
+	    dir = MACBIDI_DIR_RL;
 	    break;
 	default:
-	    rowlist = uv < 0x10000 ? to_mac_he_C[uv >> 8] : NULL;
-	    cellist = rowlist ? rowlist[uv & 0xff] : NULL;
+	    b = 0;
+	    row_contra = uv < 0x10000 ? ToMacTblC[uv >> 8] : NULL;
+	    cel_contra = row_contra ? row_contra[uv & 0xff] : NULL;
 
-	    if (cellist) {
-		bool cfound = FALSE;
-		for (; cellist->len; cellist++) {
-		    if (e < p + cellist->len ||
-			    memNE(p, cellist->string, cellist->len)) {
-			continue;
+	    if (cel_contra) {
+		for (p_contra = cel_contra; cel_contra->len; cel_contra++) {
+		    if (cel_contra->len <= (e - p) &&
+			memEQ(p, cel_contra->string, cel_contra->len)) {
+			p += cel_contra->len;
+			b = cel_contra->byte;
+			break;
 		    }
-		    p += cellist->len;
-		    b = cellist->byte;
-		    sv_catpvn(dst, (char*)&b, SBCS_LEN);
-		    cfound = TRUE;
-		    break;
 		}
-		if (cfound)
-		    break;
 	    }
-	    table = mac_he_table[dir];
-	    t = uv < 0x10000 ? table[uv >> 8] : NULL;
-	    b = t ? t[uv & 0xff] : 0;
 
-	    if (b || uv == 0) {
+	    if (!b) {
+		table = ToMacTbl[dir];
+		t = uv < 0x10000 ? table[uv >> 8] : NULL;
+		b = t ? t[uv & 0xff] : 0;
+	    }
+
+	    if (b || uv == 0)
 		sv_catpvn(dst, (char*)&b, SBCS_LEN);
-	    }
-	    else if (pv) {
+	    else if (has_pv)
 		sv_catsv(dst, ref);
-	    }
-	    else if (cv) {
-		dSP;
-		int count;
-		ENTER;
-		SAVETMPS;
-		PUSHMARK(SP);
-		XPUSHs(sv_2mortal(newSVuv(uv)));
-		PUTBACK;
-		count = call_sv(ref, G_SCALAR);
-		SPAGAIN;
-		if (count != 1)
-		    croak("Panic in XS, " PkgName "\n");
-		sv_catsv(dst,POPs);
-		PUTBACK;
-		FREETMPS;
-		LEAVE;
-	    }
+	    else if (has_cv)
+		sv_cat_cvref (dst, ref, newSVuv(uv));
 	}
     }
     XPUSHs(dst);

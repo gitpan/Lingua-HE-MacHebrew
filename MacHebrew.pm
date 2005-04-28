@@ -7,9 +7,8 @@ use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 require Exporter;
 require DynaLoader;
-require AutoLoader;
 
-$VERSION = '0.03';
+$VERSION = '0.04';
 @ISA = qw(Exporter DynaLoader);
 @EXPORT = qw(decodeMacHebrew encodeMacHebrew);
 @EXPORT_OK = qw(decode encode);
@@ -20,7 +19,7 @@ __END__
 
 =head1 NAME
 
-Lingua::HE::MacHebrew - transcode between Mac OS Hebrew encoding and Unicode
+Lingua::HE::MacHebrew - transcoding between Mac OS Hebrew encoding and Unicode
 
 =head1 SYNOPSIS
 
@@ -43,7 +42,7 @@ Lingua::HE::MacHebrew - transcode between Mac OS Hebrew encoding and Unicode
     $octet = Lingua::HE::MacHebrew::encode($wchar);
 
    # $wchar : a string in Perl's Unicode format
-   # $octet : a legacy byte string (i.e. in MacHebrew)
+   # $octet : a string in Mac OS Hebrew encoding
 
 =head1 DESCRIPTION
 
@@ -134,26 +133,30 @@ the characters with bidirectional type to be overridden?
 
 =head1 AUTHOR
 
-  SADAHIRO Tomoyuki  SADAHIRO@cpan.org
+SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 
-  http://homepage1.nifty.com/nomenclator/perl/
+Copyright(C) 2003-2005, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
-  Copyright(C) 2003-2003, SADAHIRO Tomoyuki. Japan. All rights reserved.
-
-This module is free software; you can redistribute it
-and/or modify it under the same terms as Perl itself.
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
 =over 4
 
-=item Map (external version) from Mac OS Hebrew character set to Unicode
+=item Map (external version) from Mac OS Hebrew character set
+to Unicode 2.1 and later (version: c02 2005-Apr-05)
 
-http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/HEBREW.TXT
+L<http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/HEBREW.TXT>
+
+=item Registry (external version) of Apple use of Unicode corporate-zone
+characters (version: c03 2005-Apr-04)
+
+L<http://www.unicode.org/Public/MAPPINGS/VENDORS/APPLE/CORPCHAR.TXT>
 
 =item The Bidirectional Algorithm
 
-http://www.unicode.org/unicode/reports/tr9/
+L<http://www.unicode.org/reports/tr9/>
 
 =back
 

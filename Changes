@@ -1,5 +1,13 @@
 Revision history for Perl module Lingua::HE::MacHebrew
 
+0.04  Thu Apr 28 22:49:15 2005
+    - upgraded according to updated HEBREW.TXT in www.unicode.org
+      (though no character mapping is changed).
+    - added old mappings for 0xF89A and 0xF89F in Unicode PUA; they are
+      only used in the direction from Unicode to Mac OS Hebrew encoding.
+    - added META.yml.
+    - added t/argu.t.
+
 0.03  Sat Feb 01 20:15:25 2003
     - document modification.
 
