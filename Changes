@@ -1,5 +1,8 @@
 Revision history for Perl module Lingua::HE::MacHebrew
 
+0.05  Tue Jun  5 21:56:55 2007
+    - mkheader, split_into_char() - avoid unpack('C*') on unicode.
+
 0.04  Thu Apr 28 22:49:15 2005
     - upgraded according to updated HEBREW.TXT in www.unicode.org
       (though no character mapping is changed).
