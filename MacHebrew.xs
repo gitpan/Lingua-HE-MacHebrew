@@ -27,7 +27,7 @@
 #define ToMacTblR	to_mache_R
 #define ToMacTblC	to_mache_C
 
-static U8 ** ToMacTbl [] = {
+static STDCHAR ** ToMacTbl [] = {
     ToMacTblN,
     ToMacTblL,
     ToMacTblR
@@ -126,7 +126,7 @@ encode(...)
     SV *src, *dst, *ref;
     STRLEN srclen, retlen;
     U8 *s, *e, *p;
-    U8 b, *t, **table;
+    STDCHAR b, *t, **table;
     struct macbidi_contra *p_contra, *cel_contra, **row_contra;
     UV uv;
     STDCHAR dir;
@@ -200,7 +200,7 @@ encode(...)
 	    else if (has_pv)
 		sv_catsv(dst, ref);
 	    else if (has_cv)
-		sv_cat_cvref (dst, ref, newSVuv(uv));
+		sv_cat_cvref(dst, ref, newSVuv(uv));
 	}
     }
     XPUSHs(dst);

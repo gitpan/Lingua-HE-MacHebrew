@@ -3,15 +3,14 @@ package Lingua::HE::MacHebrew;
 require 5.006001;
 
 use strict;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
 
 require Exporter;
 require DynaLoader;
 
-$VERSION = '0.05';
-@ISA = qw(Exporter DynaLoader);
-@EXPORT = qw(decodeMacHebrew encodeMacHebrew);
-@EXPORT_OK = qw(decode encode);
+our $VERSION = '0.10';
+our @ISA = qw(Exporter DynaLoader);
+our @EXPORT = qw(decodeMacHebrew encodeMacHebrew);
+our @EXPORT_OK = qw(decode encode);
 
 bootstrap Lingua::HE::MacHebrew $VERSION;
 1;
@@ -135,7 +134,7 @@ the characters with bidirectional type to be overridden?
 
 SADAHIRO Tomoyuki <SADAHIRO@cpan.org>
 
-Copyright(C) 2003-2007, SADAHIRO Tomoyuki. Japan. All rights reserved.
+Copyright(C) 2003-2011, SADAHIRO Tomoyuki. Japan. All rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
