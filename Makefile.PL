@@ -9,6 +9,7 @@ WriteMakefile(
     'VERSION_FROM'	=> 'MacHebrew.pm',
     'ABSTRACT_FROM'	=> 'MacHebrew.pm',
     'AUTHOR'		=> 'SADAHIRO Tomoyuki <SADAHIRO@cpan.org>',
+    'LICENSE'		=> 'perl',
     'clean'		=> { FILES=> 'fmmache.h tomache.h' },
     'PREREQ_PM'	  	=> {
 	bytes		=> 0,

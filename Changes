@@ -1,5 +1,8 @@
 Revision history for Perl module Lingua::HE::MacHebrew
 
+0.20  Sun Jul 31 19:33:55 2011
+    - fix the tarball with world writable files.
+
 0.10  Sat Jan 22 20:41:16 2011
     - xs: fix mixing STDCHAR and U8.
 
